@@ -1,0 +1,22 @@
+{
+  "name": "meditrackbackend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": [],
+  "author": "Sheikh Sadi",
+  "license": "ISC",
+  "description": "Meditrack backend API for medicine reminders, prescriptions, health notes, and AI chatbot",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "firebase-admin": "^13.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
