@@ -8,16 +8,8 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/', (req, res) => {
-    res.send('Meditrack backend running...');
+    res.send('Meditrack backend running...').status(200);
 })
-
-// db.listCollections()
-//     .then(() => {
-//         console.log("Firestore connected successfully");
-//     })
-//     .catch((err) => {
-//         console.log("Firestore connection failde: ", err);
-//     });
 
 // Test read from Firestore
 db.collection("test").doc("check").get()
