@@ -3,7 +3,8 @@
 ## Overview
 MediTrack is a backend API for managing medicine reminders, prescriptions, health notes, and emergency access. Built with Express.js and Firebase Firestore.
 
-**Base URL:** `http://localhost:3000`  
+**Base URL (Production):** `https://meditrackbackend.onrender.com`  
+**Base URL (Local):** `http://localhost:3000`  
 **Author:** Sheikh Sadi  
 **Version:** 1.0.0
 
@@ -39,18 +40,42 @@ Authorization: Bearer <FIREBASE_ID_TOKEN>
 ## User Endpoints
 
 ### Check User
-Verifies user authentication and creates Firestore user document if not exists.
+Verifies user authentication and creates Firestore user document if not exists. This endpoint should be called after user authentication (e.g., Google Sign-In) to ensure the user profile is created in the database.
 
 **Endpoint:** `GET /user/check`  
 **Auth Required:** Yes
+
+#### What It Does
+- Validates Firebase ID token
+- Checks if user exists in Firestore `users` collection
+- Creates user document if it doesn't exist with:
+  - `uid` (Firebase User ID)
+  - `email` (User's email)
+  - `displayName` (User's display name from Firebase)
+  - `photoURL` (User's profile picture URL)
+  - `createdAt` (Timestamp)
+  - `updatedAt` (Timestamp)
 
 #### Response
 ```json
 {
   "success": true,
   "message": "User verified",
-  "uid": "firebase_user_id",
+  "uid": "user_firebase_uid",
   "email": "user@example.com"
+}
+```
+
+#### Error Response
+```json
+{
+  "error": "No token provided"
+}
+```
+or
+```json
+{
+  "error": "Invalid token"
 }
 ```
 

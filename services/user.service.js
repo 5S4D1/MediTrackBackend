@@ -9,8 +9,11 @@ exports.createUserIfNotExists = async (uid, userData) => {
     if (!doc.exists) {
       await ref.set({
         uid,
-        ...userData,
-        createdAt: new Date()
+        email: userData.email,
+        displayName: userData.displayName || null,
+        photoURL: userData.photoURL || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       console.log("New user created in Firestore:", uid);
