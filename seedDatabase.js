@@ -11,7 +11,7 @@ const seedDatabase = async () => {
     // 1. Create User Document
     const userData = {
       uid: testUID,
-      fullName: "John Doe",
+      displayName: "John Doe",
       email: "john@example.com",
       phone: "+1234567890",
       dateOfBirth: "1990-05-15",
@@ -125,7 +125,7 @@ const seedDatabase = async () => {
       accessId: emergencyAccessId,
       uid: testUID,
       // Basic Patient Information
-      fullName: userData.fullName,
+      fullName: userData.displayName,
       dateOfBirth: userData.dateOfBirth,
       bloodType: userData.bloodType,
       allergies: userData.allergies,

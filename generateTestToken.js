@@ -1,7 +1,8 @@
 require("dotenv").config();
 const { admin } = require("./config/firebase");
 
-const uid = "GKNx7yoSKTQh03VWC5S39brb6ek1";
+
+const uid = "test_user_001";
 
 async function getTestIdToken() {
   try {

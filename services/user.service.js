@@ -26,3 +26,31 @@ exports.createUserIfNotExists = async (uid, userData) => {
     throw error;
   }
 };
+
+exports.getUserById = async (uid) => {
+  try {
+    const ref = db.collection("users").doc(uid);
+    const doc = await ref.get();
+
+    if (doc.exists) {
+      const userData = doc.data();
+      
+      // Get emergency access data if exists
+      const emergencySnapshot = await db.collection("users").doc(uid).collection("emergencyAccess").limit(1).get();
+      const emergencyData = !emergencySnapshot.empty ? {
+        id: emergencySnapshot.docs[0].id,
+        ...emergencySnapshot.docs[0].data()
+      } : null;
+      
+      return {
+        ...userData,
+        emergencyAccess: emergencyData
+      };
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error("getUserById Error:", error);
+    throw error;
+  }
+};
