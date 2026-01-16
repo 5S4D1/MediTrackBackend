@@ -16,7 +16,18 @@ exports.createUserIfNotExists = async (uid, userData) => {
         updatedAt: new Date()
       });
 
+      // Automatically create emergencyAccess collection
+      const emergencyRef = db.collection("users").doc(uid).collection("emergencyAccess").doc();
+      const emergencyAccessId = emergencyRef.id;
+      
+      await emergencyRef.set({
+        accessId: emergencyAccessId,
+        sharedData: [],
+        createdAt: new Date()
+      });
+
       console.log("New user created in Firestore:", uid);
+      console.log("Emergency access created with ID:", emergencyAccessId);
     } else {
       console.log("User already exists:", uid);
     }
