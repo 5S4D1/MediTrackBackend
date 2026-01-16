@@ -1,6 +1,6 @@
 const { createUserIfNotExists, getUserById } = require("../services/user.service");
 
-exports.checkUser = async (req, res) => {
+exports.userProfile = async (req, res) => {
   try {
     const uid = req.user.uid;
     const email = req.user.email;
