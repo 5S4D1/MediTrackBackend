@@ -1,7 +1,7 @@
 # MediTrack Backend API Documentation
 
 ## Overview
-MediTrack is a backend API for managing medicine reminders, prescriptions, health notes, and emergency access. Built with Express.js and Firebase Firestore.
+MediTrack is a backend API for managing medicine reminders, prescriptions, health notes, AI chat assistance, and emergency access. Built with Express.js, Firebase Firestore, Firebase Storage, and OpenAI.
 
 **Base URL (Production):** `https://meditrackbackend.onrender.com`  
 **Base URL (Local):** `http://localhost:3000`  
@@ -16,6 +16,7 @@ MediTrack is a backend API for managing medicine reminders, prescriptions, healt
 - [Reminders Endpoints](#reminders-endpoints)
 - [Prescriptions Endpoints](#prescriptions-endpoints)
 - [Health Notes Endpoints](#health-notes-endpoints)
+- [AI Chat Endpoints](#ai-chat-endpoints)
 - [Emergency Access Endpoints](#emergency-access-endpoints)
 - [Error Handling](#error-handling)
 
@@ -39,22 +40,16 @@ Authorization: Bearer <FIREBASE_ID_TOKEN>
 
 ## User Endpoints
 
-### Check User
-Verifies user authentication and creates Firestore user document if not exists. This endpoint should be called after user authentication (e.g., Google Sign-In) to ensure the user profile is created in the database.
+### User Profile
+Gets comprehensive user profile information including health data and emergency access details. Creates user document if it doesn't exist.
 
-**Endpoint:** `GET /user/check`  
+**Endpoint:** `GET /user/profile`  
 **Auth Required:** Yes
 
 #### What It Does
 - Validates Firebase ID token
-- Checks if user exists in Firestore `users` collection
-- Creates user document if it doesn't exist with:
-  - `uid` (Firebase User ID)
-  - `email` (User's email)
-  - `displayName` (User's display name from Firebase)
-  - `photoURL` (User's profile picture URL)
-  - `createdAt` (Timestamp)
-  - `updatedAt` (Timestamp)
+- Creates user document if not exists with automatic emergency access setup
+- Returns complete user profile with health information
 
 #### Response
 ```json
@@ -62,29 +57,34 @@ Verifies user authentication and creates Firestore user document if not exists. 
   "success": true,
   "message": "User verified",
   "uid": "user_firebase_uid",
-  "email": "user@example.com"
+  "email": "user@example.com",
+  "displayName": "John Doe",
+  "photoURL": "https://example.com/photo.jpg",
+  "bloodGroup": "A+",
+  "weight": 70,
+  "height": 175,
+  "phone": "+1234567890",
+  "allergies": ["Penicillin", "Peanuts"],
+  "emergencyAccess": {
+    "id": "emergency_access_id",
+    "accessId": "emergency_access_id",
+    "sharedData": [],
+    "createdAt": "2026-01-20T10:00:00.000Z"
+  }
 }
 ```
 
-#### Error Response
-```json
-{
-  "error": "No token provided"
-}
-```
-or
-```json
-{
-  "error": "Invalid token"
-}
-```
+#### Notes
+- Emergency access is automatically created for new users
+- All health fields (bloodGroup, weight, height, phone, allergies) are optional
+- This endpoint should be called after user authentication to ensure user profile exists
 
 ---
 
-### Get User Profile
-Temporary profile test route for user verification.
+### Check User (Simple)
+Simple endpoint for checking user authentication status.
 
-**Endpoint:** `GET /user/profile`  
+**Endpoint:** `GET /user/check`  
 **Auth Required:** Yes
 
 #### Response
@@ -254,32 +254,26 @@ Deletes a reminder.
 ## Prescriptions Endpoints
 
 ### Create Prescription
-Creates a new prescription record for the authenticated user.
+Creates a new prescription record with optional file upload to Firebase Storage.
 
 **Endpoint:** `POST /prescriptions`  
-**Auth Required:** Yes
+**Auth Required:** Yes  
+**Content-Type:** `multipart/form-data`
 
-#### Request Body
-```json
-{
-  "fileURL": "https://storage.example.com/prescription.pdf",
-  "fileType": "pdf",
-  "doctorName": "Dr. John Smith",
-  "hospital": "City Hospital",
-  "dateIssued": "2026-01-09",
-  "notes": "Take medicine after meals"
-}
+#### Request (Multipart Form Data)
+```
+Field: image (file) - Optional prescription image/PDF (max 10MB)
+Field: doctorName (text) - Optional
+Field: hospital (text) - Optional
+Field: dateIssued (text) - Optional
+Field: notes (text) - Optional
 ```
 
-#### Required Fields
-- `fileURL` (string)
-- `fileType` (string)
-
-#### Optional Fields
-- `doctorName` (string)
-- `hospital` (string)
-- `dateIssued` (date)
-- `notes` (string)
+#### Features
+- Automatic file upload to Firebase Storage
+- Generates signed URL valid for 1 year
+- Supports images and PDFs up to 10MB
+- Stores file metadata (name, type, storage path)
 
 #### Response
 ```json
@@ -289,6 +283,11 @@ Creates a new prescription record for the authenticated user.
   "prescriptionId": "auto_generated_id"
 }
 ```
+
+#### Notes
+- If file is uploaded, `fileURL`, `fileType`, `fileName`, and `storagePath` are automatically added
+- Files are stored in path: `users/{uid}/prescriptions/{timestamp}_{filename}`
+- Signed URLs are valid for 1 year from creation
 
 ---
 
@@ -305,13 +304,15 @@ Retrieves all prescriptions for the authenticated user, ordered by creation date
   "prescriptions": [
     {
       "prescriptionId": "prescription_id_1",
-      "fileURL": "https://storage.example.com/prescription.pdf",
-      "fileType": "pdf",
+      "fileURL": "https://storage.googleapis.com/...",
+      "fileType": "image/jpeg",
+      "fileName": "prescription_scan.jpg",
+      "storagePath": "users/uid123/prescriptions/1234567890_prescription_scan.jpg",
       "doctorName": "Dr. John Smith",
       "hospital": "City Hospital",
-      "dateIssued": "2026-01-09T00:00:00.000Z",
+      "dateIssued": "2026-01-20T00:00:00.000Z",
       "notes": "Take medicine after meals",
-      "createdAt": "2026-01-09T10:00:00.000Z"
+      "createdAt": "2026-01-20T10:00:00.000Z"
     }
   ]
 }
@@ -334,11 +335,13 @@ Retrieves a specific prescription by ID.
   "success": true,
   "prescription": {
     "prescriptionId": "prescription_id_1",
-    "fileURL": "https://storage.example.com/prescription.pdf",
-    "fileType": "pdf",
+    "fileURL": "https://storage.googleapis.com/...",
+    "fileType": "application/pdf",
+    "fileName": "prescription.pdf",
+    "storagePath": "users/uid123/prescriptions/1234567890_prescription.pdf",
     "doctorName": "Dr. John Smith",
     "hospital": "City Hospital",
-    "dateIssued": "2026-01-09T00:00:00.000Z",
+    "dateIssued": "2026-01-20T00:00:00.000Z",
     "notes": "Take medicine after meals",
     "createdAt": "2026-01-09T10:00:00.000Z"
   }
@@ -383,7 +386,7 @@ Updates an existing prescription.
 ---
 
 ### Delete Prescription
-Deletes a prescription.
+Deletes a prescription record and associated file from Firebase Storage.
 
 **Endpoint:** `DELETE /prescriptions/:id`  
 **Auth Required:** Yes
@@ -398,6 +401,10 @@ Deletes a prescription.
   "message": "Prescription deleted"
 }
 ```
+
+#### Notes
+- Automatically deletes the file from Firebase Storage if it exists
+- Returns 404 if prescription not found
 
 ---
 
@@ -533,6 +540,93 @@ Deletes a health note.
 
 ---
 
+## AI Chat Endpoints
+
+### Chat with AI
+Send a message to the AI assistant for medical and diet advice. Uses OpenAI GPT-4o-mini model.
+
+**Endpoint:** `POST /chat`  
+**Auth Required:** Yes
+
+#### Request Body
+```json
+{
+  "message": "What foods should I avoid with high blood pressure?",
+  "topic": "diet"
+}
+```
+
+#### Required Fields
+- `message` (string) - The user's question or message
+
+#### Optional Fields
+- `topic` (string) - Category of the chat (e.g., "diet", "health", "medication", "general")
+
+#### Response
+```json
+{
+  "success": true,
+  "reply": "For high blood pressure, it's recommended to avoid: 1) High sodium foods like processed meats and canned soups, 2) Excessive caffeine, 3) Alcohol in large amounts..."
+}
+```
+
+#### Error Response (No Message)
+```json
+{
+  "error": "Message is required"
+}
+```
+**Status Code:** `400`
+
+#### Features
+- Powered by OpenAI GPT-4o-mini
+- AI acts as a friendly medical and diet assistant
+- Provides safe, simple, non-diagnostic advice
+- All conversations are automatically saved to chat history
+
+#### Notes
+- The AI is configured to provide friendly, non-diagnostic health advice
+- Each chat interaction is logged in Firestore with timestamp
+- Limited to 50 most recent chats per user in history
+
+---
+
+### Get Chat History
+Retrieves user's chat history with the AI assistant.
+
+**Endpoint:** `GET /chat/history`  
+**Auth Required:** Yes
+
+#### Response
+```json
+{
+  "success": true,
+  "history": [
+    {
+      "chatId": "chat_id_1",
+      "userMessage": "What foods should I avoid with high blood pressure?",
+      "botReply": "For high blood pressure, it's recommended to avoid...",
+      "topic": "diet",
+      "timestamp": "2026-01-20T10:30:00.000Z"
+    },
+    {
+      "chatId": "chat_id_2",
+      "userMessage": "How much water should I drink daily?",
+      "botReply": "Generally, adults should aim for 8 glasses...",
+      "topic": "health",
+      "timestamp": "2026-01-20T09:15:00.000Z"
+    }
+  ]
+}
+```
+
+#### Notes
+- Returns up to 50 most recent chat messages
+- Ordered by timestamp (most recent first)
+- Includes both user messages and AI responses
+
+---
+
 ## Emergency Access Endpoints
 
 ### Create Emergency Access
@@ -618,6 +712,13 @@ or
 }
 ```
 
+#### 400 Bad Request
+```json
+{
+  "error": "Message is required"
+}
+```
+
 #### 500 Internal Server Error
 ```json
 {
@@ -628,6 +729,23 @@ or
 ---
 
 ## Data Models
+
+### User
+```typescript
+{
+  uid: string;
+  email: string;
+  displayName?: string | null;
+  photoURL?: string | null;
+  bloodType?: string | null;
+  weight?: number | null;
+  height?: number | null;
+  phone?: string | null;
+  allergies?: string[] | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+```
 
 ### Reminder
 ```typescript
@@ -648,8 +766,10 @@ or
 ```typescript
 {
   prescriptionId: string;
-  fileURL: string;
-  fileType: string;
+  fileURL?: string;
+  fileType?: string;
+  fileName?: string;
+  storagePath?: string; // Firebase Storage path
   doctorName?: string | null;
   hospital?: string | null;
   dateIssued?: Date;
@@ -668,6 +788,17 @@ or
 }
 ```
 
+### Chat Log
+```typescript
+{
+  chatId: string;
+  userMessage: string;
+  botReply: string;
+  topic: string; // "general", "diet", "health", "medication", etc.
+  timestamp: Date;
+}
+```
+
 ### Emergency Access
 ```typescript
 {
@@ -679,6 +810,24 @@ or
 
 ---
 
+## Environment Variables
+
+Create a `.env` file with the following:
+
+```env
+PORT=3000
+
+# Firebase Configuration
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_PRIVATE_KEY=your_private_key
+FIREBASE_CLIENT_EMAIL=your_client_email
+FIREBASE_STORAGE_BUCKET=your_storage_bucket
+
+# OpenAI Configuration
+OPENAI_API_KEY=your_openai_api_key
+```
+
+---
 
 ## Running the Server
 
@@ -696,26 +845,33 @@ The server will start at `http://localhost:3000`
 
 ---
 
-## Testing the API
+## Key Features
 
-### Example: Create a Reminder
-```bash
-curl -X POST http://localhost:3000/reminders \
-  -H "Authorization: Bearer YOUR_FIREBASE_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "medicineName": "Aspirin",
-    "dosage": "100mg",
-    "time": "09:00 AM",
-    "repeat": "daily"
-  }'
-```
+### File Upload Support
+- Prescriptions support multipart/form-data file uploads
+- Files stored in Firebase Storage with signed URLs
+- Automatic cleanup when prescriptions are deleted
+- Maximum file size: 10MB
+- Supported formats: Images (JPG, PNG) and PDFs
 
-### Example: Get All Reminders
-```bash
-curl -X GET http://localhost:3000/reminders \
-  -H "Authorization: Bearer YOUR_FIREBASE_TOKEN"
-```
+### AI Integration
+- Powered by OpenAI GPT-4o-mini
+- Provides medical and diet advice
+- Non-diagnostic, educational responses
+- Automatic chat history logging
+- Topic categorization support
+
+### Emergency Access
+- Automatically created for new users
+- Shareable access via QR codes
+- Public endpoint for emergency data retrieval
+- No authentication required for emergency access
+
+### Authentication
+- Firebase Authentication integration
+- JWT token validation
+- Automatic user profile creation
+- Secure user data isolation
 
 ---
 
@@ -725,8 +881,25 @@ curl -X GET http://localhost:3000/reminders \
 - User data is stored in subcollections under `/users/{uid}/`
 - All authenticated endpoints automatically extract user UID from the Firebase token
 - Emergency access URLs can be used to generate QR codes for quick sharing
-- The API uses Firebase Firestore for data persistence
+- The API uses Firebase Firestore for data persistence and Firebase Storage for file storage
 - CORS is enabled for all origins
+- AI chat is limited to 50 messages per user in history
+- Prescription file signed URLs expire after 1 year
+
+---
+
+## Dependencies
+
+```json
+{
+  "cors": "^2.8.5",
+  "dotenv": "^17.2.3",
+  "express": "^5.2.1",
+  "firebase-admin": "^13.6.0",
+  "multer": "^2.0.2",
+  "openai": "^6.16.0"
+}
+```
 
 ---
 

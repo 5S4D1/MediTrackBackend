@@ -29,7 +29,7 @@ app.use("/user", require("./routes/user.routes"));
 app.use("/reminders", require("./routes/reminders.routes"));
 app.use("/prescriptions", require("./routes/prescriptions.routes"));
 app.use("/notes", require("./routes/healthNotes.routes"));
-// app.use("/chat", require("./routes/chat.routes"));
+app.use("/chat", require("./routes/chat.routes"));
 app.use("/emergency", require("./routes/emergency.routes"));
 
 
