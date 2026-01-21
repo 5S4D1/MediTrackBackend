@@ -6,6 +6,9 @@ const userController = require("../controllers/user.controller");
 // Check user endpoint (creates Firestore user if not exists)
 router.get("/profile", auth, userController.userProfile);
 
+// Update user profile
+router.put("/profile", auth, userController.updateProfile);
+
 // Temporary profile test route
 router.get("/check", auth, async (req, res) => {
   res.json({

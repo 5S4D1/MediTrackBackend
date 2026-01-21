@@ -3,16 +3,25 @@ const { db } = require("../config/firebase");
 exports.createPrescription = async (uid, data) => {
   const ref = db.collection("users").doc(uid).collection("prescriptions").doc();
 
-  await ref.set({
+  const prescriptionData = {
     prescriptionId: ref.id,
-    fileURL: data.fileURL,
-    fileType: data.fileType,
     doctorName: data.doctorName || null,
     hospital: data.hospital || null,
     dateIssued: data.dateIssued || new Date(),
     notes: data.notes || null,
     createdAt: new Date()
-  });
+  };
+
+  // Only add file-related fields if they exist
+  if (data.fileURL) {
+    prescriptionData.fileURL = data.fileURL;
+    prescriptionData.fileType = data.fileType;
+    prescriptionData.fileName = data.fileName;
+    prescriptionData.publicId = data.publicId; // Cloudinary public ID for deletion
+    prescriptionData.resourceType = data.resourceType; // image, video, raw, etc.
+  }
+
+  await ref.set(prescriptionData);
 
   return ref.id;
 };

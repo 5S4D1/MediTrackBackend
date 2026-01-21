@@ -139,7 +139,7 @@ MediTrackBackend/
 - `GET /emergency/data/:code` - Access emergency data (No auth required)
 - `DELETE /emergency/code` - Revoke emergency access code
 
-For detailed API documentation, see [API_DOCUMENTATION.md](API_DOCUMENTATION.md)
+For detailed API documentation, see [API_DOCUMENTATION.md](Documentation/API_DOCUMENTATION.md)
 
 ## 🧪 Testing
 

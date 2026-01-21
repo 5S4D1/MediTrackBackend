@@ -1,58 +1,69 @@
 # MediTrack Backend API Documentation
 
 ## Overview
-MediTrack is a backend API for managing medicine reminders, prescriptions, health notes, AI chat assistance, and emergency access. Built with Express.js, Firebase Firestore, Firebase Storage, and OpenAI.
+MediTrack provides APIs for reminders, prescriptions, health notes, AI chat, and emergency access. Stack: Express.js, Firebase Firestore, Cloudinary (media), and OpenAI.
 
-**Base URL (Production):** `https://meditrackbackend.onrender.com`  
-**Base URL (Local):** `http://localhost:3000`  
-**Author:** Sheikh Sadi  
-**Version:** 1.0.0
+- Base URL (Production): https://meditrackbackend.onrender.com
+- Base URL (Local): http://localhost:3000
+- Version: 1.0.0
 
 ---
 
 ## Table of Contents
 - [Authentication](#authentication)
 - [User Endpoints](#user-endpoints)
+  - [GET /user/profile](#get-userprofile)
+  - [PUT /user/profile](#put-userprofile)
+  - [GET /user/check](#get-usercheck)
 - [Reminders Endpoints](#reminders-endpoints)
+  - [POST /reminders](#post-reminders)
+  - [GET /reminders](#get-reminders)
+  - [GET /reminders/:id](#get-remindersid)
+  - [PUT /reminders/:id](#put-remindersid)
+  - [DELETE /reminders/:id](#delete-remindersid)
 - [Prescriptions Endpoints](#prescriptions-endpoints)
+  - [POST /prescriptions](#post-prescriptions)
+  - [GET /prescriptions](#get-prescriptions)
+  - [GET /prescriptions/:id](#get-prescriptionsid)
+  - [PUT /prescriptions/:id](#put-prescriptionsid)
+  - [DELETE /prescriptions/:id](#delete-prescriptionsid)
 - [Health Notes Endpoints](#health-notes-endpoints)
+  - [POST /notes](#post-notes)
+  - [GET /notes](#get-notes)
+  - [GET /notes/:id](#get-notesid)
+  - [PUT /notes/:id](#put-notesid)
+  - [DELETE /notes/:id](#delete-notesid)
 - [AI Chat Endpoints](#ai-chat-endpoints)
+  - [POST /chat](#post-chat)
+  - [GET /chat/history](#get-chathistory)
 - [Emergency Access Endpoints](#emergency-access-endpoints)
+  - [POST /emergency](#post-emergency)
+  - [GET /emergency/:uid/:accessId](#get-emergencyuidaccessid)
 - [Error Handling](#error-handling)
+- [Data Models](#data-models)
+- [Running the Server](#running-the-server)
+- [Key Features](#key-features)
+- [Notes](#notes)
+- [Dependencies](#dependencies)
+- [Support](#support)
 
 ---
 
 ## Authentication
+All endpoints (except emergency retrieval) require Firebase Authentication.
 
-All endpoints (except emergency data retrieval) require Firebase Authentication.
-
-### Headers Required
-```
-Authorization: Bearer <FIREBASE_ID_TOKEN>
-```
-
-### Authentication Middleware
-- Validates Firebase ID tokens
-- Extracts user information (uid, email)
-- Returns `401 Unauthorized` for invalid/missing tokens
+- Header: Authorization: Bearer <FIREBASE_ID_TOKEN>
+- Middleware verifies token, attaches `uid` and `email`, returns 401 on failure.
 
 ---
 
 ## User Endpoints
 
-### User Profile
-Gets comprehensive user profile information including health data and emergency access details. Creates user document if it doesn't exist.
+### GET /user/profile
+Returns profile with health details; creates the user document and emergency access if absent.
 
-**Endpoint:** `GET /user/profile`  
-**Auth Required:** Yes
-
-#### What It Does
-- Validates Firebase ID token
-- Creates user document if not exists with automatic emergency access setup
-- Returns complete user profile with health information
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "User verified",
@@ -66,7 +77,6 @@ Gets comprehensive user profile information including health data and emergency 
   "phone": "+1234567890",
   "allergies": ["Penicillin", "Peanuts"],
   "emergencyAccess": {
-    "id": "emergency_access_id",
     "accessId": "emergency_access_id",
     "sharedData": [],
     "createdAt": "2026-01-20T10:00:00.000Z"
@@ -74,21 +84,51 @@ Gets comprehensive user profile information including health data and emergency 
 }
 ```
 
-#### Notes
-- Emergency access is automatically created for new users
-- All health fields (bloodGroup, weight, height, phone, allergies) are optional
-- This endpoint should be called after user authentication to ensure user profile exists
+### PUT /user/profile
+Updates optional profile/health fields. Only provided fields change.
 
----
+**Request Body (any subset)**
+```
+{
+  "displayName": "John Doe",
+  "photoURL": "https://example.com/avatar.jpg",
+  "bloodType": "A+",
+  "weight": 70,
+  "height": 175,
+  "phone": "+1234567890",
+  "allergies": ["Penicillin", "Peanuts"]
+}
+```
 
-### Check User (Simple)
-Simple endpoint for checking user authentication status.
+**Response**
+```
+{
+  "success": true,
+  "message": "Profile updated",
+  "user": {
+    "uid": "user_firebase_uid",
+    "email": "user@example.com",
+    "displayName": "John Doe",
+    "photoURL": "https://example.com/avatar.jpg",
+    "bloodGroup": "A+",
+    "weight": 70,
+    "height": 175,
+    "phone": "+1234567890",
+    "allergies": ["Penicillin", "Peanuts"],
+    "emergencyAccess": {
+      "accessId": "emergency_access_id",
+      "sharedData": [],
+      "createdAt": "2026-01-20T10:00:00.000Z"
+    }
+  }
+}
+```
 
-**Endpoint:** `GET /user/check`  
-**Auth Required:** Yes
+### GET /user/check
+Lightweight auth check.
 
-#### Response
-```json
+**Response**
+```
 {
   "message": "User verified",
   "uid": "firebase_user_id"
@@ -99,14 +139,11 @@ Simple endpoint for checking user authentication status.
 
 ## Reminders Endpoints
 
-### Create Reminder
-Creates a new medicine reminder for the authenticated user.
+### POST /reminders
+Create a reminder.
 
-**Endpoint:** `POST /reminders`  
-**Auth Required:** Yes
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "medicineName": "Aspirin",
   "dosage": "100mg",
@@ -116,19 +153,10 @@ Creates a new medicine reminder for the authenticated user.
   "voiceNoteURL": "https://example.com/voice.mp3"
 }
 ```
+Required: medicineName, dosage, time, repeat. Optional: imageURL, voiceNoteURL.
 
-#### Required Fields
-- `medicineName` (string)
-- `dosage` (string)
-- `time` (string)
-- `repeat` (string)
-
-#### Optional Fields
-- `imageURL` (string)
-- `voiceNoteURL` (string)
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Reminder created",
@@ -136,16 +164,11 @@ Creates a new medicine reminder for the authenticated user.
 }
 ```
 
----
+### GET /reminders
+List reminders (newest first).
 
-### Get All Reminders
-Retrieves all reminders for the authenticated user, ordered by creation date (descending).
-
-**Endpoint:** `GET /reminders`  
-**Auth Required:** Yes
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "reminders": [
@@ -164,19 +187,11 @@ Retrieves all reminders for the authenticated user, ordered by creation date (de
 }
 ```
 
----
+### GET /reminders/:id
+Fetch a reminder by ID.
 
-### Get Single Reminder
-Retrieves a specific reminder by ID.
-
-**Endpoint:** `GET /reminders/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Reminder ID
-
-#### Response (Success)
-```json
+**Response (Success)**
+```
 {
   "success": true,
   "reminder": {
@@ -193,27 +208,18 @@ Retrieves a specific reminder by ID.
 }
 ```
 
-#### Response (Not Found)
-```json
+**Response (Not Found)**
+```
 {
   "error": "Reminder not found"
 }
 ```
-**Status Code:** `404`
 
----
+### PUT /reminders/:id
+Update a reminder.
 
-### Update Reminder
-Updates an existing reminder.
-
-**Endpoint:** `PUT /reminders/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Reminder ID
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "medicineName": "Updated Medicine",
   "dosage": "200mg",
@@ -222,27 +228,19 @@ Updates an existing reminder.
 }
 ```
 
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Reminder updated"
 }
 ```
 
----
+### DELETE /reminders/:id
+Delete a reminder.
 
-### Delete Reminder
-Deletes a reminder.
-
-**Endpoint:** `DELETE /reminders/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Reminder ID
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Reminder deleted"
@@ -253,61 +251,40 @@ Deletes a reminder.
 
 ## Prescriptions Endpoints
 
-### Create Prescription
-Creates a new prescription record with optional file upload to Firebase Storage.
+### POST /prescriptions
+Create prescription; optional file upload to Cloudinary.
 
-**Endpoint:** `POST /prescriptions`  
-**Auth Required:** Yes  
-**Content-Type:** `multipart/form-data`
+- Content-Type: multipart/form-data
+- Fields: `image` (file, optional, max 10MB), `doctorName`, `hospital`, `dateIssued`, `notes` (all optional)
 
-#### Request (Multipart Form Data)
+**Response**
 ```
-Field: image (file) - Optional prescription image/PDF (max 10MB)
-Field: doctorName (text) - Optional
-Field: hospital (text) - Optional
-Field: dateIssued (text) - Optional
-Field: notes (text) - Optional
-```
-
-#### Features
-- Automatic file upload to Firebase Storage
-- Generates signed URL valid for 1 year
-- Supports images and PDFs up to 10MB
-- Stores file metadata (name, type, storage path)
-
-#### Response
-```json
 {
   "success": true,
   "message": "Prescription created",
-  "prescriptionId": "auto_generated_id"
+  "prescriptionId": "auto_generated_id",
+  "warning": "File upload failed, prescription saved without attachment"
 }
 ```
+`warning` only appears if upload fails.
 
-#### Notes
-- If file is uploaded, `fileURL`, `fileType`, `fileName`, and `storagePath` are automatically added
-- Files are stored in path: `users/{uid}/prescriptions/{timestamp}_{filename}`
-- Signed URLs are valid for 1 year from creation
+Notes: Stored under `meditrack/{uid}/prescriptions` in Cloudinary; use `fileURL` to view and `publicId` to delete.
 
----
+### GET /prescriptions
+List prescriptions (newest first).
 
-### Get All Prescriptions
-Retrieves all prescriptions for the authenticated user, ordered by creation date (descending).
-
-**Endpoint:** `GET /prescriptions`  
-**Auth Required:** Yes
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "prescriptions": [
     {
       "prescriptionId": "prescription_id_1",
-      "fileURL": "https://storage.googleapis.com/...",
+      "fileURL": "https://res.cloudinary.com/...",
       "fileType": "image/jpeg",
       "fileName": "prescription_scan.jpg",
-      "storagePath": "users/uid123/prescriptions/1234567890_prescription_scan.jpg",
+      "publicId": "meditrack/uid/prescriptions/1737549000_prescription_scan",
+      "resourceType": "image",
       "doctorName": "Dr. John Smith",
       "hospital": "City Hospital",
       "dateIssued": "2026-01-20T00:00:00.000Z",
@@ -318,118 +295,85 @@ Retrieves all prescriptions for the authenticated user, ordered by creation date
 }
 ```
 
----
+### GET /prescriptions/:id
+Fetch a prescription by ID.
 
-### Get Single Prescription
-Retrieves a specific prescription by ID.
-
-**Endpoint:** `GET /prescriptions/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Prescription ID
-
-#### Response (Success)
-```json
+**Response (Success)**
+```
 {
   "success": true,
   "prescription": {
     "prescriptionId": "prescription_id_1",
-    "fileURL": "https://storage.googleapis.com/...",
+    "fileURL": "https://res.cloudinary.com/...",
     "fileType": "application/pdf",
     "fileName": "prescription.pdf",
-    "storagePath": "users/uid123/prescriptions/1234567890_prescription.pdf",
+    "publicId": "meditrack/uid/prescriptions/1737549000_prescription",
+    "resourceType": "raw",
     "doctorName": "Dr. John Smith",
     "hospital": "City Hospital",
     "dateIssued": "2026-01-20T00:00:00.000Z",
     "notes": "Take medicine after meals",
-    "createdAt": "2026-01-09T10:00:00.000Z"
+    "createdAt": "2026-01-20T10:00:00.000Z"
   }
 }
 ```
 
-#### Response (Not Found)
-```json
+**Response (Not Found)**
+```
 {
   "error": "Prescription not found"
 }
 ```
-**Status Code:** `404`
 
----
+### PUT /prescriptions/:id
+Update prescription metadata.
 
-### Update Prescription
-Updates an existing prescription.
-
-**Endpoint:** `PUT /prescriptions/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Prescription ID
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "doctorName": "Dr. Jane Doe",
   "notes": "Updated notes"
 }
 ```
 
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Prescription updated"
 }
 ```
 
----
+### DELETE /prescriptions/:id
+Delete a prescription and its Cloudinary asset when `publicId` exists.
 
-### Delete Prescription
-Deletes a prescription record and associated file from Firebase Storage.
-
-**Endpoint:** `DELETE /prescriptions/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Prescription ID
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Prescription deleted"
 }
 ```
-
-#### Notes
-- Automatically deletes the file from Firebase Storage if it exists
-- Returns 404 if prescription not found
+Notes: 404 if not found; Cloudinary delete failure does not block DB delete.
 
 ---
 
 ## Health Notes Endpoints
 
-### Create Health Note
-Creates a new health note for the authenticated user.
+### POST /notes
+Create a health note.
 
-**Endpoint:** `POST /notes`  
-**Auth Required:** Yes
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "title": "Doctor Appointment",
   "content": "Discussed treatment plan and follow-up schedule"
 }
 ```
+Required: title, content.
 
-#### Required Fields
-- `title` (string)
-- `content` (string)
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Note created",
@@ -437,16 +381,11 @@ Creates a new health note for the authenticated user.
 }
 ```
 
----
+### GET /notes
+List notes (newest first).
 
-### Get All Health Notes
-Retrieves all health notes for the authenticated user, ordered by creation date (descending).
-
-**Endpoint:** `GET /notes`  
-**Auth Required:** Yes
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "notes": [
@@ -460,19 +399,11 @@ Retrieves all health notes for the authenticated user, ordered by creation date 
 }
 ```
 
----
+### GET /notes/:id
+Fetch a note by ID.
 
-### Get Single Health Note
-Retrieves a specific health note by ID.
-
-**Endpoint:** `GET /notes/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Note ID
-
-#### Response (Success)
-```json
+**Response (Success)**
+```
 {
   "success": true,
   "note": {
@@ -484,54 +415,37 @@ Retrieves a specific health note by ID.
 }
 ```
 
-#### Response (Not Found)
-```json
+**Response (Not Found)**
+```
 {
   "error": "Note not found"
 }
 ```
-**Status Code:** `404`
 
----
+### PUT /notes/:id
+Update a note.
 
-### Update Health Note
-Updates an existing health note.
-
-**Endpoint:** `PUT /notes/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Note ID
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "title": "Updated Title",
   "content": "Updated content"
 }
 ```
 
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Note updated"
 }
 ```
 
----
+### DELETE /notes/:id
+Delete a note.
 
-### Delete Health Note
-Deletes a health note.
-
-**Endpoint:** `DELETE /notes/:id`  
-**Auth Required:** Yes
-
-#### URL Parameters
-- `id` - Note ID
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Note deleted"
@@ -542,63 +456,40 @@ Deletes a health note.
 
 ## AI Chat Endpoints
 
-### Chat with AI
-Send a message to the AI assistant for medical and diet advice. Uses OpenAI GPT-4o-mini model.
+### POST /chat
+Send a message to the AI assistant (OpenAI GPT-4o-mini).
 
-**Endpoint:** `POST /chat`  
-**Auth Required:** Yes
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "message": "What foods should I avoid with high blood pressure?",
   "topic": "diet"
 }
 ```
+Required: message. Optional: topic (diet, health, medication, general).
 
-#### Required Fields
-- `message` (string) - The user's question or message
-
-#### Optional Fields
-- `topic` (string) - Category of the chat (e.g., "diet", "health", "medication", "general")
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
-  "reply": "For high blood pressure, it's recommended to avoid: 1) High sodium foods like processed meats and canned soups, 2) Excessive caffeine, 3) Alcohol in large amounts..."
+  "reply": "For high blood pressure, it's recommended to avoid..."
 }
 ```
 
-#### Error Response (No Message)
-```json
+**Error (400)**
+```
 {
   "error": "Message is required"
 }
 ```
-**Status Code:** `400`
 
-#### Features
-- Powered by OpenAI GPT-4o-mini
-- AI acts as a friendly medical and diet assistant
-- Provides safe, simple, non-diagnostic advice
-- All conversations are automatically saved to chat history
+Notes: AI provides non-diagnostic advice; chats are saved; history capped at 50.
 
-#### Notes
-- The AI is configured to provide friendly, non-diagnostic health advice
-- Each chat interaction is logged in Firestore with timestamp
-- Limited to 50 most recent chats per user in history
+### GET /chat/history
+Get chat history (max 50, newest first).
 
----
-
-### Get Chat History
-Retrieves user's chat history with the AI assistant.
-
-**Endpoint:** `GET /chat/history`  
-**Auth Required:** Yes
-
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "history": [
@@ -608,42 +499,27 @@ Retrieves user's chat history with the AI assistant.
       "botReply": "For high blood pressure, it's recommended to avoid...",
       "topic": "diet",
       "timestamp": "2026-01-20T10:30:00.000Z"
-    },
-    {
-      "chatId": "chat_id_2",
-      "userMessage": "How much water should I drink daily?",
-      "botReply": "Generally, adults should aim for 8 glasses...",
-      "topic": "health",
-      "timestamp": "2026-01-20T09:15:00.000Z"
     }
   ]
 }
 ```
 
-#### Notes
-- Returns up to 50 most recent chat messages
-- Ordered by timestamp (most recent first)
-- Includes both user messages and AI responses
-
 ---
 
 ## Emergency Access Endpoints
 
-### Create Emergency Access
-Generates an emergency access token for sharing medical information.
+### POST /emergency
+Create emergency access token for sharing medical data.
 
-**Endpoint:** `POST /emergency`  
-**Auth Required:** Yes
-
-#### Request Body
-```json
+**Request Body**
+```
 {
   "sharedData": ["prescriptions", "reminders", "healthNotes"]
 }
 ```
 
-#### Response
-```json
+**Response**
+```
 {
   "success": true,
   "message": "Emergency access created",
@@ -654,20 +530,11 @@ Generates an emergency access token for sharing medical information.
 }
 ```
 
----
+### GET /emergency/:uid/:accessId
+Public retrieval of emergency data (no auth).
 
-### Get Emergency Data
-Retrieves emergency medical data using access ID (public endpoint).
-
-**Endpoint:** `GET /emergency/:uid/:accessId`  
-**Auth Required:** No
-
-#### URL Parameters
-- `uid` - User ID (Firebase UID)
-- `accessId` - Emergency Access ID
-
-#### Response (Success)
-```json
+**Response (Success)**
+```
 {
   "success": true,
   "data": {
@@ -678,13 +545,12 @@ Retrieves emergency medical data using access ID (public endpoint).
 }
 ```
 
-#### Response (Not Found)
-```json
+**Response (Not Found)**
+```
 {
   "error": "Emergency access not found"
 }
 ```
-**Status Code:** `404`
 
 ---
 
@@ -693,34 +559,33 @@ Retrieves emergency medical data using access ID (public endpoint).
 ### Standard Error Responses
 
 #### 401 Unauthorized
-```json
+```
 {
   "error": "No token provided"
 }
 ```
-or
-```json
+```
 {
   "error": "Invalid token"
 }
 ```
 
 #### 404 Not Found
-```json
+```
 {
   "error": "Resource not found"
 }
 ```
 
 #### 400 Bad Request
-```json
+```
 {
   "error": "Message is required"
 }
 ```
 
 #### 500 Internal Server Error
-```json
+```
 {
   "error": "Failed to [action description]"
 }
@@ -731,55 +596,59 @@ or
 ## Data Models
 
 ### User
-```typescript
+```
 {
   uid: string;
   email: string;
   displayName?: string | null;
   photoURL?: string | null;
-  bloodType?: string | null;
+  bloodGroup?: string | null; // stored as bloodType in DB
   weight?: number | null;
   height?: number | null;
   phone?: string | null;
   allergies?: string[] | null;
-  createdAt: Date;
-  updatedAt: Date;
+  emergencyAccess?: {
+    accessId: string;
+    sharedData: string[];
+    createdAt: Date;
+  };
 }
 ```
 
 ### Reminder
-```typescript
+```
 {
   reminderId: string;
   medicineName: string;
   dosage: string;
   time: string;
   repeat: string;
-  imageURL?: string | null;
-  voiceNoteURL?: string | null;
-  status: string; // "pending" by default
+  imageURL?: string;
+  voiceNoteURL?: string;
+  status?: "pending" | "completed";
   createdAt: Date;
 }
 ```
 
 ### Prescription
-```typescript
+```
 {
   prescriptionId: string;
+  doctorName?: string;
+  hospital?: string;
+  dateIssued?: Date;
+  notes?: string;
   fileURL?: string;
   fileType?: string;
   fileName?: string;
-  storagePath?: string; // Firebase Storage path
-  doctorName?: string | null;
-  hospital?: string | null;
-  dateIssued?: Date;
-  notes?: string | null;
+  publicId?: string;
+  resourceType?: "image" | "raw" | "video";
   createdAt: Date;
 }
 ```
 
 ### Health Note
-```typescript
+```
 {
   noteId: string;
   title: string;
@@ -788,19 +657,19 @@ or
 }
 ```
 
-### Chat Log
-```typescript
+### Chat Message
+```
 {
   chatId: string;
   userMessage: string;
   botReply: string;
-  topic: string; // "general", "diet", "health", "medication", etc.
+  topic?: "diet" | "health" | "medication" | "general";
   timestamp: Date;
 }
 ```
 
 ### Emergency Access
-```typescript
+```
 {
   accessId: string;
   sharedData: string[];
@@ -810,99 +679,50 @@ or
 
 ---
 
-## Environment Variables
-
-Create a `.env` file with the following:
-
-```env
-PORT=3000
-
-# Firebase Configuration
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_PRIVATE_KEY=your_private_key
-FIREBASE_CLIENT_EMAIL=your_client_email
-FIREBASE_STORAGE_BUCKET=your_storage_bucket
-
-# OpenAI Configuration
-OPENAI_API_KEY=your_openai_api_key
-```
-
----
-
 ## Running the Server
 
-### Development Mode
-```bash
+### Development
+```
 npm run dev
 ```
 
-### Production Mode
-```bash
+### Production
+```
 npm start
 ```
 
-The server will start at `http://localhost:3000`
+Server defaults to http://localhost:3000.
 
 ---
 
 ## Key Features
-
-### File Upload Support
-- Prescriptions support multipart/form-data file uploads
-- Files stored in Firebase Storage with signed URLs
-- Automatic cleanup when prescriptions are deleted
-- Maximum file size: 10MB
-- Supported formats: Images (JPG, PNG) and PDFs
-
-### AI Integration
-- Powered by OpenAI GPT-4o-mini
-- Provides medical and diet advice
-- Non-diagnostic, educational responses
-- Automatic chat history logging
-- Topic categorization support
-
-### Emergency Access
-- Automatically created for new users
-- Shareable access via QR codes
-- Public endpoint for emergency data retrieval
-- No authentication required for emergency access
-
-### Authentication
-- Firebase Authentication integration
-- JWT token validation
-- Automatic user profile creation
-- Secure user data isolation
+- Multipart uploads to Cloudinary for prescriptions (10MB limit; images/PDF/other docs; auto cleanup via `publicId`).
+- AI chat via OpenAI GPT-4o-mini; non-diagnostic guidance; history capped at 50.
+- Emergency access auto-created for new users; public retrieval via shared URL/QR.
+- Firebase Authentication for secured endpoints; Firestore data isolation per user.
 
 ---
 
 ## Notes
-
-- All timestamps are stored as JavaScript `Date` objects in Firestore
-- User data is stored in subcollections under `/users/{uid}/`
-- All authenticated endpoints automatically extract user UID from the Firebase token
-- Emergency access URLs can be used to generate QR codes for quick sharing
-- The API uses Firebase Firestore for data persistence and Firebase Storage for file storage
-- CORS is enabled for all origins
-- AI chat is limited to 50 messages per user in history
-- Prescription file signed URLs expire after 1 year
+- Timestamps stored as JavaScript `Date` in Firestore.
+- User data stored under `/users/{uid}/` with subcollections per feature.
+- CORS enabled for all origins.
+- Cloudinary assets deletable via stored `publicId`.
 
 ---
 
 ## Dependencies
-
-```json
-{
-  "cors": "^2.8.5",
-  "dotenv": "^17.2.3",
-  "express": "^5.2.1",
-  "firebase-admin": "^13.6.0",
-  "multer": "^2.0.2",
-  "openai": "^6.16.0"
-}
+```
+cors ^2.8.5
+dotenv ^17.2.3
+cloudinary ^2.9.0
+express ^5.2.1
+firebase-admin ^13.6.0
+multer ^2.0.2
+openai ^6.16.0
 ```
 
 ---
 
 ## Support
-
-For issues or questions, please contact the development team or refer to the project repository.
+For issues or questions, contact the development team or refer to the project repository.

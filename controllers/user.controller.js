@@ -1,4 +1,4 @@
-const { createUserIfNotExists, getUserById } = require("../services/user.service");
+const { createUserIfNotExists, getUserById, updateUserById } = require("../services/user.service");
 
 exports.userProfile = async (req, res) => {
   try {
@@ -31,5 +31,49 @@ exports.userProfile = async (req, res) => {
   } catch (error) {
     console.error("checkUser error:", error);
     res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const uid = req.user.uid;
+    const allowedFields = [
+      "displayName",
+      "photoURL",
+      "bloodType",
+      "weight",
+      "height",
+      "phone",
+      "allergies"
+    ];
+
+    const updates = {};
+    allowedFields.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
+
+    const updatedUser = await updateUserById(uid, updates);
+
+    res.json({
+      success: true,
+      message: "Profile updated",
+      user: {
+        uid,
+        email: updatedUser?.email || null,
+        displayName: updatedUser?.displayName || null,
+        photoURL: updatedUser?.photoURL || null,
+        bloodGroup: updatedUser?.bloodType || null,
+        weight: updatedUser?.weight || null,
+        height: updatedUser?.height || null,
+        phone: updatedUser?.phone || null,
+        allergies: updatedUser?.allergies || null,
+        emergencyAccess: updatedUser?.emergencyAccess || null
+      }
+    });
+  } catch (error) {
+    console.error("updateProfile error:", error);
+    res.status(500).json({ error: "Failed to update profile" });
   }
 };

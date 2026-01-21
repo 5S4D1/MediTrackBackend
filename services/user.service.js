@@ -65,3 +65,23 @@ exports.getUserById = async (uid) => {
     throw error;
   }
 };
+
+exports.updateUserById = async (uid, updates) => {
+  try {
+    const ref = db.collection("users").doc(uid);
+
+    const filtered = Object.entries(updates || {}).reduce((acc, [key, value]) => {
+      if (value !== undefined) acc[key] = value;
+      return acc;
+    }, {});
+
+    filtered.updatedAt = new Date();
+
+    await ref.set(filtered, { merge: true });
+
+    return await exports.getUserById(uid);
+  } catch (error) {
+    console.error("updateUserById Error:", error);
+    throw error;
+  }
+};
