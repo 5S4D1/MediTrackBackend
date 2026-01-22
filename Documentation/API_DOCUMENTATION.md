@@ -36,9 +36,12 @@ MediTrack provides APIs for reminders, prescriptions, health notes, AI chat, and
 - [AI Chat Endpoints](#ai-chat-endpoints)
   - [POST /chat](#post-chat)
   - [GET /chat/history](#get-chathistory)
-- [Emergency Access Endpoints](#emergency-access-endpoints)
-  - [POST /emergency](#post-emergency)
+- [Emergency Endpoints](#emergency-endpoints)
   - [GET /emergency/:uid/:accessId](#get-emergencyuidaccessid)
+  - [POST /emergency/contacts](#post-emergencycontacts)
+  - [GET /emergency/contacts](#get-emergencycontacts)
+  - [PUT /emergency/contacts/:id](#put-emergencycontactsid)
+  - [DELETE /emergency/contacts/:id](#delete-emergencycontactsid)
 - [Error Handling](#error-handling)
 - [Data Models](#data-models)
 - [Running the Server](#running-the-server)
@@ -71,21 +74,25 @@ Returns profile with health details; creates the user document and emergency acc
   "email": "user@example.com",
   "displayName": "John Doe",
   "photoURL": "https://example.com/photo.jpg",
-  "bloodGroup": "A+",
+  "bloodType": "A+",
   "weight": 70,
   "height": 175,
   "phone": "+1234567890",
   "allergies": ["Penicillin", "Peanuts"],
+  "dateOfBirth": "1990-05-15",
   "emergencyAccess": {
-    "accessId": "emergency_access_id",
-    "sharedData": [],
+    "accessId": "default",
+    "displayName": "John Doe",
+    "bloodType": "A+",
+    "dateOfBirth": "1990-05-15",
+    "emergencyContacts": [],
     "createdAt": "2026-01-20T10:00:00.000Z"
   }
 }
 ```
 
 ### PUT /user/profile
-Updates optional profile/health fields. Only provided fields change.
+Updates optional profile/health fields. Only provided fields change. **Profile changes (displayName, bloodType, dateOfBirth) automatically sync to the user's emergency access document.**
 
 **Request Body (any subset)**
 ```
@@ -96,7 +103,8 @@ Updates optional profile/health fields. Only provided fields change.
   "weight": 70,
   "height": 175,
   "phone": "+1234567890",
-  "allergies": ["Penicillin", "Peanuts"]
+  "allergies": ["Penicillin", "Peanuts"],
+  "dateOfBirth": "1990-05-15"
 }
 ```
 
@@ -115,9 +123,13 @@ Updates optional profile/health fields. Only provided fields change.
     "height": 175,
     "phone": "+1234567890",
     "allergies": ["Penicillin", "Peanuts"],
+    "dateOfBirth": "1990-05-15",
     "emergencyAccess": {
-      "accessId": "emergency_access_id",
-      "sharedData": [],
+      "accessId": "default",
+      "displayName": "John Doe",
+      "bloodType": "A+",
+      "dateOfBirth": "1990-05-15",
+      "emergencyContacts": [],
       "createdAt": "2026-01-20T10:00:00.000Z"
     }
   }
@@ -506,41 +518,36 @@ Get chat history (max 50, newest first).
 
 ---
 
-## Emergency Access Endpoints
+## Emergency Endpoints
 
-### POST /emergency
-Create emergency access token for sharing medical data.
-
-**Request Body**
-```
-{
-  "sharedData": ["prescriptions", "reminders", "healthNotes"]
-}
-```
-
-**Response**
-```
-{
-  "success": true,
-  "message": "Emergency access created",
-  "data": {
-    "accessId": "auto_generated_access_id",
-    "emergencyURL": "https://meditrackweb.vercel.app/emergency/auto_generated_access_id"
-  }
-}
-```
+**Auto-Setup:** An `emergencyAccess/default` document is automatically created when a user joins. Profile changes (displayName, bloodType, dateOfBirth) automatically sync to this document. Emergency contacts are stored as an array within this document.
 
 ### GET /emergency/:uid/:accessId
-Public retrieval of emergency data (no auth).
+Public retrieval of emergency data (no auth required). Use `accessId = "default"` for the main emergency access.
 
 **Response (Success)**
 ```
 {
   "success": true,
   "data": {
-    "accessId": "access_id_1",
-    "sharedData": ["prescriptions", "reminders", "healthNotes"],
-    "createdAt": "2026-01-09T10:00:00.000Z"
+    "accessId": "default",
+    "uid": "user_firebase_uid",
+    "displayName": "John Doe",
+    "bloodType": "A+",
+    "dateOfBirth": "1990-05-15",
+    "emergencyContacts": [
+      {
+        "id": "contact_id_1",
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "phone": "+1234567891",
+        "relationship": "Spouse",
+        "createdAt": "2026-01-20T10:15:00.000Z",
+        "updatedAt": "2026-01-20T10:15:00.000Z"
+      }
+    ],
+    "createdAt": "2026-01-20T10:00:00.000Z",
+    "updatedAt": "2026-01-20T10:15:00.000Z"
   }
 }
 ```
@@ -549,6 +556,117 @@ Public retrieval of emergency data (no auth).
 ```
 {
   "error": "Emergency access not found"
+}
+```
+
+### POST /emergency/contacts
+Add an emergency contact to the user's emergency access document.
+
+**Request Body**
+```
+{
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "phone": "+1234567891",
+  "relationship": "Spouse"
+}
+```
+Required: name, phone, relationship. Optional: email.
+
+**Response**
+```
+{
+  "success": true,
+  "message": "Emergency contact added",
+  "contacts": [
+    {
+      "id": "contact_id_1",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+1234567891",
+      "relationship": "Spouse",
+      "createdAt": "2026-01-20T10:15:00.000Z",
+      "updatedAt": "2026-01-20T10:15:00.000Z"
+    }
+  ]
+}
+```
+
+### GET /emergency/contacts
+Fetch all emergency contacts for the user.
+
+**Response**
+```
+{
+  "success": true,
+  "contacts": [
+    {
+      "id": "contact_id_1",
+      "name": "Jane Doe",
+      "email": "jane@example.com",
+      "phone": "+1234567891",
+      "relationship": "Spouse",
+      "createdAt": "2026-01-20T10:15:00.000Z",
+      "updatedAt": "2026-01-20T10:15:00.000Z"
+    },
+    {
+      "id": "contact_id_2",
+      "name": "John Smith",
+      "email": "john@example.com",
+      "phone": "+1234567892",
+      "relationship": "Friend",
+      "createdAt": "2026-01-20T10:20:00.000Z",
+      "updatedAt": "2026-01-20T10:20:00.000Z"
+    }
+  ]
+}
+```
+
+### PUT /emergency/contacts/:id
+Update an emergency contact by ID.
+
+**Request Body (any subset)**
+```
+{
+  "name": "Jane Doe",
+  "email": "jane.updated@example.com",
+  "phone": "+1234567899",
+  "relationship": "Wife"
+}
+```
+
+**Response**
+```
+{
+  "success": true,
+  "message": "Emergency contact updated",
+  "contact": {
+    "id": "contact_id_1",
+    "name": "Jane Doe",
+    "email": "jane.updated@example.com",
+    "phone": "+1234567899",
+    "relationship": "Wife",
+    "createdAt": "2026-01-20T10:15:00.000Z",
+    "updatedAt": "2026-01-20T10:25:00.000Z"
+  }
+}
+```
+
+**Response (Not Found)**
+```
+{
+  "error": "Contact not found"
+}
+```
+
+### DELETE /emergency/contacts/:id
+Delete an emergency contact by ID.
+
+**Response**
+```
+{
+  "success": true,
+  "message": "Emergency contact deleted"
 }
 ```
 
@@ -602,15 +720,20 @@ Public retrieval of emergency data (no auth).
   email: string;
   displayName?: string | null;
   photoURL?: string | null;
-  bloodGroup?: string | null; // stored as bloodType in DB
+  bloodType?: string | null;
   weight?: number | null;
   height?: number | null;
   phone?: string | null;
   allergies?: string[] | null;
+  dateOfBirth?: string | null;
   emergencyAccess?: {
     accessId: string;
-    sharedData: string[];
+    displayName?: string | null;
+    bloodType?: string | null;
+    dateOfBirth?: string | null;
+    emergencyContacts: EmergencyContact[];
     createdAt: Date;
+    updatedAt: Date;
   };
 }
 ```
@@ -671,9 +794,24 @@ Public retrieval of emergency data (no auth).
 ### Emergency Access
 ```
 {
-  accessId: string;
-  sharedData: string[];
+  accessId: "default";
+  uid: string;
+  displayName?: string | null;
+  bloodType?: string | null;
+  dateOfBirth?: string | null;
+  emergencyContacts: [
+    {
+      id: string;
+      name: string;
+      email?: string | null;
+      phone: string;
+      relationship: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  ];
   createdAt: Date;
+  updatedAt: Date;
 }
 ```
 
@@ -696,16 +834,21 @@ Server defaults to http://localhost:3000.
 ---
 
 ## Key Features
-- Multipart uploads to Cloudinary for prescriptions (10MB limit; images/PDF/other docs; auto cleanup via `publicId`).
-- AI chat via OpenAI GPT-4o-mini; non-diagnostic guidance; history capped at 50.
-- Emergency access auto-created for new users; public retrieval via shared URL/QR.
-- Firebase Authentication for secured endpoints; Firestore data isolation per user.
+- **Multipart uploads to Cloudinary** for prescriptions (10MB limit; images/PDF/audio/video/other docs; auto cleanup via `publicId`).
+- **Profile auto-sync** - Changes to displayName, bloodType, dateOfBirth automatically sync from user profile to emergency access document.
+- **Emergency access auto-created** for new users with a single `default` document. Contacts stored as an embedded array.
+- **Emergency contacts CRUD** - Add, view, update, delete multiple emergency contacts. Profile and contacts viewable publicly via shared link.
+- **AI chat via OpenAI GPT-4o-mini** - Non-diagnostic guidance; history capped at 50.
+- **Firebase Authentication** for secured endpoints; Firestore data isolation per user.
 
 ---
 
 ## Notes
 - Timestamps stored as JavaScript `Date` in Firestore.
 - User data stored under `/users/{uid}/` with subcollections per feature.
+- Emergency access stored as `/users/{uid}/emergencyAccess/default` (single document per user).
+- Emergency contacts stored as an array within the `default` emergency access document.
+- Profile changes automatically sync to emergency access (displayName, bloodType, dateOfBirth).
 - CORS enabled for all origins.
 - Cloudinary assets deletable via stored `publicId`.
 

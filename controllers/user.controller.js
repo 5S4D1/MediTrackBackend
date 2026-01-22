@@ -20,11 +20,12 @@ exports.userProfile = async (req, res) => {
       email,
       displayName: userData?.displayName || null,
       photoURL: userData?.photoURL || null,
-      bloodGroup: userData?.bloodType || null,
       weight: userData?.weight || null,
       height: userData?.height || null,
       phone: userData?.phone || null,
       allergies: userData?.allergies || null,
+      bloodType: userData?.bloodType || null,
+      dateOfBirth: userData?.dateOfBirth || null,
       emergencyAccess: userData?.emergencyAccess || null
     });
 
@@ -44,7 +45,8 @@ exports.updateProfile = async (req, res) => {
       "weight",
       "height",
       "phone",
-      "allergies"
+      "allergies",
+      "dateOfBirth",
     ];
 
     const updates = {};
@@ -64,11 +66,12 @@ exports.updateProfile = async (req, res) => {
         email: updatedUser?.email || null,
         displayName: updatedUser?.displayName || null,
         photoURL: updatedUser?.photoURL || null,
-        bloodGroup: updatedUser?.bloodType || null,
+        bloodType: updatedUser?.bloodType || null,
         weight: updatedUser?.weight || null,
         height: updatedUser?.height || null,
         phone: updatedUser?.phone || null,
         allergies: updatedUser?.allergies || null,
+        dateOfBirth: updatedUser?.dateOfBirth || null,
         emergencyAccess: updatedUser?.emergencyAccess || null
       }
     });

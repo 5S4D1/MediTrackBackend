@@ -12,18 +12,23 @@ exports.createUserIfNotExists = async (uid, userData) => {
         email: userData.email,
         displayName: userData.displayName || null,
         photoURL: userData.photoURL || null,
+        bloodType: null,
+        dateOfBirth: null,
         createdAt: new Date(),
         updatedAt: new Date()
       });
 
-      // Automatically create emergencyAccess collection
-      const emergencyRef = db.collection("users").doc(uid).collection("emergencyAccess").doc();
-      const emergencyAccessId = emergencyRef.id;
-      
-      await emergencyRef.set({
+      // Automatically create emergencyAccess/default document
+      const emergencyAccessId = "default";
+      await db.collection("users").doc(uid).collection("emergencyAccess").doc(emergencyAccessId).set({
         accessId: emergencyAccessId,
-        sharedData: [],
-        createdAt: new Date()
+        uid,
+        displayName: userData.displayName || null,
+        bloodType: null,
+        dateOfBirth: null,
+        emergencyContacts: [],
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       console.log("New user created in Firestore:", uid);
@@ -78,6 +83,17 @@ exports.updateUserById = async (uid, updates) => {
     filtered.updatedAt = new Date();
 
     await ref.set(filtered, { merge: true });
+
+    // Sync profile fields to emergency access document
+    const emergencyUpdateData = {};
+    if (filtered.displayName !== undefined) emergencyUpdateData.displayName = filtered.displayName;
+    if (filtered.bloodType !== undefined) emergencyUpdateData.bloodType = filtered.bloodType;
+    if (filtered.dateOfBirth !== undefined) emergencyUpdateData.dateOfBirth = filtered.dateOfBirth;
+
+    if (Object.keys(emergencyUpdateData).length > 0) {
+      emergencyUpdateData.updatedAt = new Date();
+      await db.collection("users").doc(uid).collection("emergencyAccess").doc("default").set(emergencyUpdateData, { merge: true });
+    }
 
     return await exports.getUserById(uid);
   } catch (error) {
