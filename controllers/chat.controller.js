@@ -9,11 +9,20 @@ exports.chatWithAI = async (req, res) => {
       return res.status(400).json({ error: "Message is required" });
     }
 
-    const reply = await chatService.askAI(uid, message, topic);
+    const result = await chatService.askAI(uid, message, topic);
+
+    // Check if question was rejected (not health-related)
+    if (result.isRejected) {
+      return res.status(400).json({
+        success: false,
+        error: result.botReply,
+        reason: "Not a health-related question"
+      });
+    }
 
     res.json({
       success: true,
-      reply
+      reply: result.botReply
     });
   } catch (err) {
     console.error(err);
