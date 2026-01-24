@@ -26,6 +26,7 @@ exports.userProfile = async (req, res) => {
       allergies: userData?.allergies || null,
       bloodType: userData?.bloodType || null,
       dateOfBirth: userData?.dateOfBirth || null,
+      medicalConditions: userData?.medicalConditions || null,
       emergencyAccess: userData?.emergencyAccess || null
     });
 
@@ -46,6 +47,7 @@ exports.updateProfile = async (req, res) => {
       "height",
       "phone",
       "allergies",
+      "medicalConditions",
       "dateOfBirth",
     ];
 
@@ -71,6 +73,7 @@ exports.updateProfile = async (req, res) => {
         height: updatedUser?.height || null,
         phone: updatedUser?.phone || null,
         allergies: updatedUser?.allergies || null,
+        medicalConditions: updatedUser?.medicalConditions || null,
         dateOfBirth: updatedUser?.dateOfBirth || null,
         emergencyAccess: updatedUser?.emergencyAccess || null
       }

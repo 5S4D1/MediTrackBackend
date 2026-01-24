@@ -79,6 +79,7 @@ Returns profile with health details; creates the user document and emergency acc
   "height": 175,
   "phone": "+1234567890",
   "allergies": ["Penicillin", "Peanuts"],
+  "medicalConditions":["Hypertension", "Type 2 Diabetes"],
   "dateOfBirth": "1990-05-15",
   "emergencyAccess": {
     "accessId": "default",
@@ -104,6 +105,7 @@ Updates optional profile/health fields. Only provided fields change. **Profile c
   "height": 175,
   "phone": "+1234567890",
   "allergies": ["Penicillin", "Peanuts"],
+  "medicalConditions":["Hypertension", "Type 2 Diabetes"],
   "dateOfBirth": "1990-05-15"
 }
 ```
@@ -123,6 +125,7 @@ Updates optional profile/health fields. Only provided fields change. **Profile c
     "height": 175,
     "phone": "+1234567890",
     "allergies": ["Penicillin", "Peanuts"],
+    "medicalConditions":["Hypertension", "Type 2 Diabetes"],
     "dateOfBirth": "1990-05-15",
     "emergencyAccess": {
       "accessId": "default",

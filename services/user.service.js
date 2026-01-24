@@ -14,6 +14,11 @@ exports.createUserIfNotExists = async (uid, userData) => {
         photoURL: userData.photoURL || null,
         bloodType: null,
         dateOfBirth: null,
+        weight: null,
+        height: null,
+        phone: null,
+        allergies: null,
+        medicalConditions: null,
         createdAt: new Date(),
         updatedAt: new Date()
       });
